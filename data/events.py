@@ -6,6 +6,7 @@ from sqlalchemy import orm
 
 
 class Event(SqlAlchemyBase):
+    '''Модель таблицы мероприятий: Название, дата, описание, организация '''
     __tablename__ = 'events'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,

@@ -4,6 +4,7 @@ from .db_session import SqlAlchemyBase
 
 
 class Registration(SqlAlchemyBase):
+    '''Модель таблицы регистраций id пользовавтеля и id мероприятия'''
     __tablename__ = 'registrations'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,

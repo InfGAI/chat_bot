@@ -4,6 +4,7 @@ from .db_session import SqlAlchemyBase
 from sqlalchemy import orm
 
 class User(SqlAlchemyBase):
+    '''Модель таблицы пользователей: Имя введенное, имя из telegram, токен пользователя=id чата'''
     __tablename__ = 'users'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,

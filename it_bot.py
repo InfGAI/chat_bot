@@ -20,6 +20,7 @@ db_sess = db_session.create_session()
 
 
 def user_keyboard(context):
+    '''Кнопки по-умолчанию для админа и пользователя. ВОзвращает ReplyKeyboardMarkup'''
     try:
         markup = ReplyKeyboardMarkup(context.user_data['reply_keyboard'], one_time_keyboard=False)
     except:
@@ -28,7 +29,8 @@ def user_keyboard(context):
     return markup
 
 
-def message_to_all(context, text):
+def message_to_all(context, text=''):
+    '''Сообщение всем пользователям чата'''
     all_chat_id = db_sess.query(User.chat_id).all()
     print(all_chat_id)
     for chat_id in all_chat_id:
@@ -39,9 +41,22 @@ def message_to_all(context, text):
             print('Пользователь удален из чата', chat_id[0])
 
 
+def to_all(update, context):
+    '''Обработка /to_all'''
+    try:
+        text = ' '.join(context.args)
+        print(text)
+    except:
+        update.message.reply_text(
+            "Чтобы отправить всем сообщение, наберите /to_all ваше сообщение")
+        return
+    message_to_all(context, text)
+
+
 def help(update, context):
+    '''Обработка /help'''
     update.message.reply_text(
-        "Если хочешь зарегистрироваться на мероприятие, ответь на сообщение с интересным для тебя мероприятием.")
+        "Воспользуйся кнопками. Если что-то пошло не так, начни сначала /start")
 
 
 # Стартовый сценарий
@@ -54,11 +69,11 @@ def start(update, context):
 
 
 def first_response(update, context):
-    # Это ответ на первый вопрос.
-    # Мы можем использовать его во втором вопросе.
+    '''Выбор кнопок в зависимости от прав доступа, регистарция нового пользователя.'''
     name = update.message.text
     context.user_data['name'] = name
     if name.lower() == 'admin':
+        update.message.reply_text('Чтобы отправить сообщение всем участникам чата, наберите /start ваше сообщение')
         context.user_data['reply_keyboard'] = [['Разместить информацию', 'Мероприятия'],
                                                ['/events прошедшие', '/events будущие']]
     else:
@@ -83,7 +98,8 @@ def first_response(update, context):
 
 
 def choice(update, context):
-    if update.message.text == 'Нет':
+    '''Изменение имени пользователя.'''
+    if update.message.text.lower() == 'нет':
         user = db_sess.query(User).filter(User.token == update.message.from_user['id']).one()
         context.user_data['name'] = user.name
     welcome(update, context)
@@ -91,6 +107,7 @@ def choice(update, context):
 
 
 def welcome(update, context):
+    '''Обновляем имя пользователя'''
     markup = user_keyboard(context)
     update.message.reply_text(
         f"{context.user_data['name'].capitalize()}, добро пожаловать!", reply_markup=markup)
@@ -104,6 +121,7 @@ def welcome(update, context):
 
 
 def stop(update, context):
+    '''Прерывание регистрации'''
     markup = user_keyboard(context)
     update.message.reply_text(
         "Регистрация завершена", reply_markup=markup)
@@ -113,6 +131,7 @@ def stop(update, context):
 # Сценарий добавления события
 
 def post(update, context):
+    '''Обработка /post'''
     markup = ReplyKeyboardRemove()
     update.message.reply_text(
         "Разместить информацию:")
@@ -123,6 +142,7 @@ def post(update, context):
 
 
 def add_event_name(update, context):
+    '''Ввод названия мероприятия, проверка на существование в БД и переход к вооду времени'''
     try:
         reply_keyboard = [['Мероприятия', '/stop_post']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
@@ -140,6 +160,7 @@ def add_event_name(update, context):
 
 
 def add_event_date(update, context):
+    '''Ввод даты мероприятия, проверка на корректность и переход к ввод организации'''
     try:
         date = datetime.datetime.strptime(update.message.text, "%Y-%m-%d %H:%M")
         context.user_data['new_event']['date'] = date
@@ -156,6 +177,7 @@ def add_event_date(update, context):
 
 
 def add_event_org(update, context):
+    '''Ввод организации мероприятия и переход к вводу описания'''
     context.user_data['new_event']['org'] = update.message.text.lower()
     reply_keyboard = [['Нет', '/stop_post'], ['Мероприятия']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
@@ -164,6 +186,7 @@ def add_event_org(update, context):
 
 
 def add_event(update, context):
+    '''Ввод описания мероприятия, созадние записи в БД'''
     if update.message.text.lower() != 'нет':
         context.user_data['new_event']['about'] = update.message.text
     else:
@@ -195,10 +218,11 @@ def add_event(update, context):
 
 
 def stop_post(update, context):
+    '''Прерывание создания мероприятия'''
     if update.message.text == '/stop_post' or update.message.text.lower() == "нет":
         markup = user_keyboard(context)
         update.message.reply_text(
-            "Регистрация завершена", reply_markup=markup)
+            "Завершено", reply_markup=markup)
         return ConversationHandler.END
     else:
         update.message.reply_text(
@@ -207,8 +231,8 @@ def stop_post(update, context):
 
 
 # Сценарий регистрации
-
 def reg(update, context):
+    '''Запуск регистрации на мероприятие'''
     view(update, context)
     update.message.reply_text("Чтобы увидеть расположение на карте, ответьте 'ГДЕ' на сообщение с мероприятием.\n" +
                               "Чтобы зарегистрироваться на мероприятие, ответьте 'Я' на сообщение с мероприятием.\n" +
@@ -217,6 +241,7 @@ def reg(update, context):
 
 
 def add_my_event(update, context):
+    '''Обработка ответа на сообщение для регистрации'''
     try:
         name, date, org, adress = update.message.reply_to_message['text'].split('\n')
         markup = ReplyKeyboardMarkup([['/stop', 'Мероприятия']])
@@ -252,6 +277,7 @@ def check_time(str_date):
 
 
 def my_events(update, context):
+    '''Просмотр мероприятий на которые зарегистрирован в будущем'''
     update.message.reply_text("Мои регистрации на мероприятия:")
     events = db_sess.query(Event).filter(
         (User.chat_id == update.message.from_user['id']) & (User.id == Registration.user_id) &
@@ -268,6 +294,7 @@ def my_events(update, context):
 
 
 def find_adress(org):
+    '''Поиск корректного названия организации и адреса, если отстутвует описание'''
     URL = "https://search-maps.yandex.ru/v1/"
     params = {
         'apikey': APIKEY,
@@ -303,7 +330,7 @@ def find_adress(org):
 
 
 def show_map(adress):
-    ''' Созадет файл map.png с меткой организации. Возвращает адрес организации.'''
+    ''' Построенеи карты с меткой организации Возвращает картинку.'''
     URL = "https://search-maps.yandex.ru/v1/"
     params = {
         'apikey': APIKEY,
@@ -330,14 +357,11 @@ def show_map(adress):
     if not response:
         print("Ошибка выполнения запроса:")
         print("Http статус:", response.status_code, "(", response.reason, ")")
-    # Запишем полученное изображение в файл.
-    map_file = "map.png"
-    with open(map_file, "wb") as file:
-        file.write(response.content)
     return response.content
 
 
 def view(update, context):
+    '''Просмотр будущих мероприятий'''
     update.message.reply_text("Доступные мероприятия:")
     events = db_sess.query(Event).filter(datetime.datetime.now() < Event.date)
     rez = ''
@@ -352,6 +376,7 @@ def view(update, context):
 
 
 def view_students(update, context):
+    '''Просмотр зарегистрированных учеников на поршедшие и будущие мероприятия'''
     if context.args[0] == 'прошедшие':
         events = db_sess.query(Event).filter(Event.date < datetime.datetime.now()).all()
     else:
@@ -415,6 +440,8 @@ def main():
     dp.add_handler(MessageHandler(Filters.regex('Мероприятия'), view, pass_user_data=True))
     dp.add_handler(CommandHandler('events', view_students, pass_user_data=True))
     dp.add_handler(MessageHandler(Filters.regex('Мои мероприятия'), my_events, pass_user_data=True))
+    dp.add_handler(CommandHandler('to_all', to_all, pass_user_data=True))
+
     # Сценарий старта
     start_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start,
@@ -453,14 +480,10 @@ def main():
         fallbacks=[CommandHandler('stop_post', stop_post)]
     )
     dp.add_handler(post_handler)
-
     # Запускаем цикл приема и обработки сообщений.
     updater.start_polling()
-    # Ждём завершения приложения.
-    # (например, получения сигнала SIG_TERM при нажатии клавиш Ctrl+C)
     updater.idle()
 
 
-# Запускаем функцию main() в случае запуска скрипта.
 if __name__ == '__main__':
     main()
